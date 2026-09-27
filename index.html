@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>大富翁 寶島風雲</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="setup">
+    <div class="setup-card">
+      <h1 class="logo">大富翁 寶島風雲</h1>
+      <p class="logo-sub">買地蓋房・炒股致富・神明附身・卡片大戰・小遊戲</p>
+      <div id="slots" class="slots"></div>
+      <div class="setup-opts">
+        <label>起始現金／存款
+          <select id="optCash">
+            <option value="10000">各 $10,000</option>
+            <option value="20000" selected>各 $20,000</option>
+            <option value="30000">各 $30,000</option>
+          </select>
+        </label>
+        <label>遊戲天數
+          <select id="optDays">
+            <option value="30">30 天</option>
+            <option value="60" selected>60 天</option>
+            <option value="90">90 天</option>
+            <option value="0">不限（直到破產）</option>
+          </select>
+        </label>
+        <label>勝利條件
+          <select id="optTarget">
+            <option value="0" selected>天數結束時資產最多</option>
+            <option value="200000">總資產先達 $200,000</option>
+            <option value="400000">總資產先達 $400,000</option>
+          </select>
+        </label>
+        <label>動畫速度
+          <select id="optSpeed">
+            <option value="0.5">快</option>
+            <option value="1" selected>普通</option>
+            <option value="1.6">慢</option>
+          </select>
+        </label>
+      </div>
+      <div class="setup-actions">
+        <button id="btnContinue" class="good hidden">💾 繼續上次遊戲</button>
+        <button id="btnStart" class="primary">🎲 開始遊戲</button>
+      </div>
+      <details class="rules">
+        <summary>📖 遊戲說明</summary>
+        <p><b>基本規則</b>：輪流擲骰前進。停在空地可以購買，停在自己的土地可以蓋房（最高 5 級：平房→洋房→公寓→大樓→摩天樓），停在別人的土地要付過路費。同一區擁有越多土地，過路費越高，整區全包再加成！經過銀行領薪水與點券，每月 1 日存款生利息。住院或坐牢的地主收不到過路費。</p>
+        <p><b>🃏 卡片</b>：26 種道具卡（遙控骰子、路障、地雷、均富卡、查稅卡、購地卡、換地卡、怪獸卡、天使卡、惡魔卡、紅卡黑卡、請神符、送神符、飛彈卡……）。停在「卡片」格免費獲得，或到道具店用點券購買。擲骰前可使用，每回合限 1 張；免費卡在付過路費時自動詢問。</p>
+        <p><b>⛩️ 神明</b>：地圖上會隨機出現神明，經過就會被附身數回合。好神：大/小財神、大/小福神、土地公、天使；壞神：大/小窮神、大/小衰神、惡魔。到神明廟可以擲筊請神。用請神符請神、用送神符把衰神送給對手！</p>
+        <p><b>📈 股票</b>（參考 Fortune Street）：每個區域都有一檔股票。股價跟著區域開發程度走──在該區買地蓋房會推升股價；一次買賣 10 股以上也會推動股價。有人在該區付過路費時，所有股東都能依持股領股利！平日擲骰前可進入股市，週末休市，但停在「證券所」週末也能交易，還能打聽內線消息。</p>
+        <p><b>🎮 小遊戲</b>：打地鼠、賽馬、猜大小、拉霸機、記憶翻牌、神準一擊、猜拳王。</p>
+        <p><b>🚗 交通工具</b>：在道具店可買機車（2 顆骰）、汽車（3 顆骰），擲骰前可自由選擇要擲幾顆。</p>
+        <p>點擊棋盤格子可查看土地資訊，點擊玩家卡片可查看資產。全部設為電腦即可觀戰。</p>
+      </details>
+    </div>
+  </div>
+
+  <div id="game" class="hidden">
+    <div id="players"></div>
+    <div id="main">
+      <div id="board"></div>
+      <aside id="side">
+        <div id="turnInfo" class="box"></div>
+        <div id="actions" class="box"></div>
+        <div id="log" class="box"></div>
+        <button id="btnMenu" class="small">⚙️ 選單</button>
+      </aside>
+    </div>
+  </div>
+
+  <div id="modalRoot"></div>
+  <div id="toastRoot"></div>
+
+  <script src="js/util.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/economy.js"></script>
+  <script src="js/stocks.js"></script>
+  <script src="js/gods.js"></script>
+  <script src="js/cards.js"></script>
+  <script src="js/events.js"></script>
+  <script src="js/shop.js"></script>
+  <script src="js/minigames.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
