@@ -27,6 +27,7 @@ const Game = {
   },
 
   async start(settings) {
+    applyMap(settings.mapId);
     this.s = this.newState(settings);
     Stocks.init(this.s);
     for (const p of this.s.players) {
@@ -35,7 +36,7 @@ const Game = {
     Gods.spawn(true);
     Gods.spawn(true);
     this.enterGame();
-    UI.log('🎉 遊戲開始！目標：成為寶島第一大富翁！', 'sys');
+    UI.log(`🎉 遊戲開始！地圖：${CURRENT_MAP.name}。目標：成為第一大富翁！`, 'sys');
     UI.log(`📅 ${UI.dateText()}`, 'sys');
     this.save();
     await this.loop();
@@ -44,6 +45,7 @@ const Game = {
   async resume() {
     const s = this.load();
     if (!s) return false;
+    applyMap(s.settings.mapId);
     this.s = s;
     this.enterGame();
     UI.log('💾 已讀取存檔，繼續遊戲', 'sys');

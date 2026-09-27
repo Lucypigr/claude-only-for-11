@@ -7,7 +7,21 @@ const Setup = {
     { type: 'ai', charId: 'beibei' },
   ],
 
+  mapId: 'taiwan',
+
+  renderMaps() {
+    const root = $('#mapPick');
+    root.innerHTML = '';
+    for (const [id, m] of Object.entries(MAPS)) {
+      root.appendChild(U.el('button', {
+        class: 'mapcard' + (id === this.mapId ? ' sel' : ''), id: `map-${id}`,
+        onclick: () => { this.mapId = id; this.renderMaps(); },
+      }, U.el('span', { class: 'micon' }, m.icon), U.el('b', null, m.name), U.el('span', { class: 'mdesc' }, m.desc)));
+    }
+  },
+
   render() {
+    this.renderMaps();
     const root = $('#slots');
     root.innerHTML = '';
     this.slots.forEach((sl, i) => {
@@ -31,6 +45,7 @@ const Setup = {
     const ids = active.map(s => s.charId);
     if (new Set(ids).size !== ids.length) return '每位玩家的角色不能重複';
     return {
+      mapId: this.mapId,
       players: active.map(s => ({ charId: s.charId, isAI: s.type === 'ai' })),
       cash: +$('#optCash').value,
       maxDays: +$('#optDays').value,

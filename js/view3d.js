@@ -60,6 +60,17 @@ const View3D = {
     this.scene.add(sun);
 
     this.buildWorld();
+    // 陰影與霧依地圖大小調整
+    const h = Map3D.span * 0.62 + 4, mid = Map3D.mid;
+    sun.position.set(mid.x + 28, 55, mid.z + 22);
+    sun.target.position.copy(mid);
+    this.scene.add(sun.target);
+    Object.assign(sun.shadow.camera, { left: -h, right: h, top: h, bottom: -h, near: 5, far: 90 + h * 2 });
+    sun.shadow.camera.updateProjectionMatrix();
+    this.scene.fog.near = Math.max(110, Map3D.span * 1.8);
+    this.scene.fog.far = Math.max(260, Map3D.span * 4.5);
+    this.camera.far = Math.max(600, Map3D.span * 6);
+    this.camera.updateProjectionMatrix();
     this.bindControls();
     this.resize();
     new ResizeObserver(() => this.resize()).observe(container);
@@ -97,6 +108,25 @@ const View3D = {
     return m;
   },
 
+  // 垂直牆面（堤道側邊）
+  wall(points, offset, yTop, yBot, color) {
+    const pos = [], idx = [];
+    const n = points.length;
+    for (let i = 0; i < n; i++) {
+      const a = points[(i - 1 + n) % n], b = points[(i + 1) % n];
+      const tx = b.x - a.x, tz = b.z - a.z, l = Math.hypot(tx, tz) || 1;
+      const x = points[i].x - tz / l * offset, z = points[i].z + tx / l * offset;
+      pos.push(x, yTop, z, x, yBot, z);
+      const j = (i + 1) % n;
+      idx.push(i * 2, j * 2, i * 2 + 1, i * 2 + 1, j * 2, j * 2 + 1);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide }));
+  },
+
   buildWorld() {
     const s = Game.s, scene = this.scene, TOP = Map3D.TOP;
     Map3D.build(s.tiles.length);
@@ -107,22 +137,34 @@ const View3D = {
     sea.rotation.x = -Math.PI / 2;
     sea.receiveShadow = true;
     scene.add(sea);
-    // 淺海
-    const cx = Map3D.coast.reduce((a, v) => a + v.x, 0) / Map3D.coast.length;
-    const cz = Map3D.coast.reduce((a, v) => a + v.y, 0) / Map3D.coast.length;
-    const shallow = new THREE.Shape(Map3D.coast.map(v => new THREE.Vector2(cx + (v.x - cx) * 1.13, -(cz + (v.y - cz) * 1.08))));
-    const sh = new THREE.Mesh(new THREE.ShapeGeometry(shallow), new THREE.MeshLambertMaterial({ color: '#63c6ec', transparent: true, opacity: 0.85 }));
-    sh.rotation.x = -Math.PI / 2;
-    sh.position.y = 0.03;
-    scene.add(sh);
-    // 島
-    const shape = new THREE.Shape(Map3D.coast.map(v => new THREE.Vector2(v.x, -v.y)));
-    const island = new THREE.Mesh(
-      new THREE.ExtrudeGeometry(shape, { depth: 0.45, bevelEnabled: true, bevelThickness: 0.15, bevelSize: 0.4, bevelSegments: 2, curveSegments: 6 }),
-      [new THREE.MeshLambertMaterial({ color: '#8cc751' }), new THREE.MeshLambertMaterial({ color: '#f1dca0' })]);
-    island.rotation.x = -Math.PI / 2;
-    island.receiveShadow = true;
-    scene.add(island);
+    // 陸地與淺海
+    const landMats = [new THREE.MeshLambertMaterial({ color: '#8cc751' }), new THREE.MeshLambertMaterial({ color: '#f1dca0' })];
+    const shallowMat = new THREE.MeshLambertMaterial({ color: '#63c6ec', transparent: true, opacity: 0.85 });
+    for (const poly of Map3D.lands) {
+      const cx = poly.reduce((a, v) => a + v.x, 0) / poly.length;
+      const cz = poly.reduce((a, v) => a + v.y, 0) / poly.length;
+      const span = Math.max(...poly.map(v => Math.hypot(v.x - cx, v.y - cz))) || 1;
+      const f = 1 + Math.min(0.13, 2.5 / span);
+      const sh = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(poly.map(v => new THREE.Vector2(cx + (v.x - cx) * f, -(cz + (v.y - cz) * f))))), shallowMat);
+      sh.rotation.x = -Math.PI / 2;
+      sh.position.y = 0.03;
+      scene.add(sh);
+      const island = new THREE.Mesh(
+        new THREE.ExtrudeGeometry(new THREE.Shape(poly.map(v => new THREE.Vector2(v.x, -v.y))),
+          { depth: 0.45, bevelEnabled: true, bevelThickness: 0.15, bevelSize: 0.4, bevelSegments: 2, curveSegments: 6 }),
+        landMats);
+      island.rotation.x = -Math.PI / 2;
+      island.receiveShadow = true;
+      scene.add(island);
+    }
+    // route 模式：道路兩旁填出堤道，跨海時也有陸地
+    if (Map3D.geo.mode === 'route') {
+      const ep = Map3D.curve.getSpacedPoints(900).slice(0, 900);
+      const E = Map3D.EMBANK;
+      scene.add(this.ribbon(ep, 0, E + 1.4, 0.02, '#63c6ec'));
+      scene.add(this.ribbon(ep, 0, E, TOP - 0.003, '#8cc751'));
+      scene.add(this.wall(ep, E, TOP, 0, '#f1dca0'), this.wall(ep, -E, TOP, 0, '#f1dca0'));
+    }
 
     // 道路
     const rp = Map3D.curve.getSpacedPoints(700).slice(0, 700);
@@ -233,38 +275,40 @@ const View3D = {
   },
 
   buildTerrain(rnd) {
-    const TOP = Map3D.TOP;
+    const TOP = Map3D.TOP, B = Map3D.bounds;
+    const inLand = (x, z) => Map3D.lands.some(poly => Map3D.insidePoly(poly, x, z));
     const roadClear = (x, z) => Math.min(Map3D.roadDist(x, z) - 1.2, ...Map3D.tiles.map(t => Math.hypot(t.plot.x - x, t.plot.z - z) - 1.15));
-    // 中央山脈
+    // 山脈
     this.mountains = [];
-    const peakZ = Map3D.toXZ(121, 23.47).y;
-    Map3D.spine.forEach((sp, k) => {
-      for (const off of [0, -0.22, 0.22]) {
+    for (const pk of Map3D.peaks) {
+      for (const off of pk.spread ? [0, -0.22, 0.22] : [0, 1, 2]) {
         if (off && rnd() < 0.45) continue;
-        const x = sp.x + off * sp.w + (rnd() - 0.5) * 1.2, z = sp.z + (rnd() - 0.5) * 1.2;
-        const r = Math.min(3.2, roadClear(x, z) - 0.2);
-        if (r < 1.1 || !Map3D.insidePoly(Map3D.coast, x, z)) continue;
-        const near = Math.exp(-Math.pow((z - peakZ) / 9, 2));
-        const h = r * (1.1 + rnd() * 0.5) * (1 + near * 0.9) * (off ? 0.75 : 1);
+        const jitter = pk.spread ? 1.2 : 3;
+        const x = pk.x + (pk.spread ? off * pk.spread : 0) + (rnd() - 0.5) * jitter, z = pk.z + (rnd() - 0.5) * jitter;
+        const r = Math.min(3.2 * Math.sqrt(pk.boost), roadClear(x, z) - 0.2);
+        if (r < 1.1 || !inLand(x, z)) continue;
+        const h = r * (1.1 + rnd() * 0.5) * (off === 0 ? pk.boost : 1) * (off ? 0.75 : 1);
         const m = Map3D.mountain(r, h, rnd);
         m.position.set(x, TOP - 0.05, z);
         m.rotation.y = rnd() * Math.PI;
         this.scene.add(m);
         this.mountains.push({ x, z, r });
       }
-    });
+    }
     // 樹林（InstancedMesh）
     const spots = [];
-    for (let k = 0; k < 4000 && spots.length < 260; k++) {
-      const x = -17 + rnd() * 36, z = -30 + rnd() * 60;
-      if (!Map3D.insidePoly(Map3D.coast, x, z)) continue;
-      if ([[-0.9, 0], [0.9, 0], [0, 0.9], [0, -0.9]].some(([dx, dz]) => !Map3D.insidePoly(Map3D.coast, x + dx, z + dz))) continue;
+    const want = U.clamp(Math.round(Map3D.lands.reduce((a, poly) => a + poly.length, 0) * 6), 160, 320);
+    for (let k = 0; k < 9000 && spots.length < want; k++) {
+      const x = B.minX + rnd() * (B.maxX - B.minX), z = B.minZ + rnd() * (B.maxZ - B.minZ);
+      if (!inLand(x, z)) continue;
+      if ([[-0.9, 0], [0.9, 0], [0, 0.9], [0, -0.9]].some(([dx, dz]) => !inLand(x + dx, z + dz))) continue;
       if (roadClear(x, z) < 0.35) continue;
       if (this.mountains.some(m => Math.hypot(m.x - x, m.z - z) < m.r * 0.85)) continue;
       spots.push({ x, z, s: 0.7 + rnd() * 0.6 });
     }
-    const leaf = new THREE.InstancedMesh(new THREE.ConeGeometry(0.42, 1.1, 6), new THREE.MeshLambertMaterial({ color: '#ffffff', flatShading: true }), spots.length);
-    const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.07, 0.09, 0.4, 5), new THREE.MeshLambertMaterial({ color: '#6d4c41' }), spots.length);
+    const leaf = new THREE.InstancedMesh(new THREE.ConeGeometry(0.42, 1.1, 6), new THREE.MeshLambertMaterial({ color: '#ffffff', flatShading: true }), Math.max(1, spots.length));
+    const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.07, 0.09, 0.4, 5), new THREE.MeshLambertMaterial({ color: '#6d4c41' }), Math.max(1, spots.length));
+    leaf.count = trunk.count = spots.length;
     const mtx = new THREE.Matrix4(), col = new THREE.Color();
     const greens = ['#2e7d32', '#388e3c', '#43a047', '#558b2f', '#1b5e20'];
     spots.forEach((sp, i) => {
@@ -276,18 +320,34 @@ const View3D = {
     });
     leaf.castShadow = trunk.castShadow = true;
     this.scene.add(leaf, trunk);
-    // 燈塔（鵝鑾鼻）
-    const tip = Map3D.toXZ(120.8, 21.97);
-    const lh = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 1.8, 12), Map3D.mat('#ffffff'));
-    body.position.y = 0.9;
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.3, 12), Map3D.mat('#e53935'));
-    top.position.y = 1.95;
-    body.castShadow = true;
-    lh.add(body, top);
-    lh.position.set(tip.x, TOP, tip.y);
-    this.scene.add(lh);
+    // 地圖裝飾
+    for (const pr of Map3D.geo.props || []) {
+      const at = Map3D.toXZ(pr.at[0], pr.at[1]);
+      const g = new THREE.Group();
+      if (pr.type === 'lighthouse') {
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 1.8, 12), Map3D.mat('#ffffff'));
+        body.position.y = 0.9;
+        body.castShadow = true;
+        const top = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.3, 12), Map3D.mat('#e53935'));
+        top.position.y = 1.95;
+        g.add(body, top);
+      } else if (pr.type === 'torii') {
+        for (const dx of [-0.5, 0.5]) {
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 1.6, 8), Map3D.mat('#d84315'));
+          post.position.set(dx, 0.8, 0);
+          post.castShadow = true;
+          g.add(post);
+        }
+        g.add(Map3D.box(1.6, 0.14, 0.2, '#d84315', 1.55), Map3D.box(1.3, 0.1, 0.14, '#d84315', 1.25));
+      } else if (pr.type === 'pagoda') {
+        for (let k = 0; k < 4; k++) g.add(Map3D.box(0.9 - k * 0.15, 0.35, 0.9 - k * 0.15, '#fff3e0', k * 0.55), Map3D.roof(0.85 - k * 0.14, 0.25, '#6d4c41', k * 0.55 + 0.35, 1.4));
+      }
+      g.position.set(at.x, TOP, at.y);
+      g.rotation.y = pr.rot || 0;
+      this.scene.add(g);
+    }
     // 船
+    const R = Map3D.span * 0.62;
     this.boats = [0, 1, 2].map(k => {
       const b = new THREE.Group();
       const hull = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 1.3), Map3D.mat(['#ffffff', '#ffca28', '#ef5350'][k]));
@@ -295,7 +355,7 @@ const View3D = {
       const sail = new THREE.Mesh(new THREE.ConeGeometry(0.35, 1.0, 3), Map3D.mat('#fafafa'));
       sail.position.y = 0.8;
       b.add(hull, sail);
-      b.userData = { r: 36 + k * 5, a: k * 2.1, sp: 0.03 + k * 0.01 };
+      b.userData = { r: R + k * 4, a: k * 2.1, sp: 0.03 + k * 0.01 };
       this.scene.add(b);
       return b;
     });
@@ -315,7 +375,7 @@ const View3D = {
         s.position.set(j * 1.1 - n * 0.55, rnd() * 0.3, (rnd() - 0.5) * 0.9);
         c.add(s);
       }
-      c.position.set(-60 + rnd() * 120, 24 + rnd() * 4, -45 + rnd() * 90);
+      c.position.set(Map3D.mid.x + (rnd() - 0.5) * Map3D.span * 1.8, 24 + rnd() * 4, Map3D.mid.z + (rnd() - 0.5) * Map3D.span * 1.4);
       this.scene.add(c);
       this.clouds.push(c);
     }
@@ -493,10 +553,11 @@ const View3D = {
       r.material.opacity = 0.6 + Math.sin(now / 180) * 0.35;
     }
     this.spinners.forEach(w => { w.rotation.z += dt * 0.6; });
-    this.clouds.forEach(c => { c.position.x += dt * 0.8; if (c.position.x > 70) c.position.x = -70; });
+    const cw = Map3D.span * 0.9;
+    this.clouds.forEach(c => { c.position.x += dt * 0.8; if (c.position.x > Map3D.mid.x + cw) c.position.x = Map3D.mid.x - cw; });
     this.boats.forEach(b => {
       b.userData.a += dt * b.userData.sp;
-      b.position.set(Math.cos(b.userData.a) * b.userData.r * 0.7, 0.05, Math.sin(b.userData.a) * b.userData.r);
+      b.position.set(Map3D.mid.x + Math.cos(b.userData.a) * b.userData.r * 0.7, 0.05, Map3D.mid.z + Math.sin(b.userData.a) * b.userData.r);
       b.rotation.y = -b.userData.a;
     });
     // 新蓋的房子長出來
@@ -522,10 +583,10 @@ const View3D = {
     const c = this.cam, s = Game.s;
     let want;
     if (c.mode === 'follow' && this.tokens[s.current]) want = this.tokens[s.current].g.position.clone().setY(Map3D.TOP);
-    else want = new THREE.Vector3(1.2, 0, 0.5);
+    else want = Map3D.mid.clone();
     const k = 1 - Math.exp(-dt * 4);
     c.target.lerp(want, k);
-    const wantDist = c.mode === 'follow' ? c.dist : c.overDist || 72;
+    const wantDist = c.mode === 'follow' ? c.dist : c.overDist || Map3D.span * 1.25;
     c.distCur += (wantDist - c.distCur) * k;
     const d = c.distCur;
     this.camera.position.set(
@@ -538,7 +599,7 @@ const View3D = {
   zoom(f) {
     const c = this.cam;
     if (c.mode === 'follow') c.dist = U.clamp(c.dist * f, 7, 60);
-    else c.overDist = U.clamp((c.overDist || 72) * f, 30, 130);
+    else c.overDist = U.clamp((c.overDist || Map3D.span * 1.25) * f, 25, 200);
   },
 
   toggleMode() {
@@ -546,7 +607,7 @@ const View3D = {
     return this.cam.mode;
   },
 
-  resetView() { Object.assign(this.cam, { yaw: 0, pitch: 0.86, dist: 23, overDist: 72 }); },
+  resetView() { Object.assign(this.cam, { yaw: 0, pitch: 0.86, dist: 23, overDist: Map3D.span * 1.25 }); },
 
   bindControls() {
     const el = this.renderer.domElement;

@@ -10,17 +10,8 @@ const CHARACTERS = [
   { id: 'wumi', name: '烏咪', icon: '🐱', color: '#00897b', quote: '喵～這塊地是我的了喵！' },
 ];
 
-// 區域（同時也是股票，參考 Fortune Street 的區域股票）
-const DISTRICTS = [
-  { id: 0, name: '基隆', color: '#8d6e63', stock: '基隆港務' },
-  { id: 1, name: '宜蘭', color: '#43a047', stock: '蘭陽觀光' },
-  { id: 2, name: '花蓮', color: '#00acc1', stock: '洄瀾石材' },
-  { id: 3, name: '台東', color: '#fb8c00', stock: '縱谷農產' },
-  { id: 4, name: '高雄', color: '#e53935', stock: '港都鋼鐵' },
-  { id: 5, name: '台南', color: '#8e24aa', stock: '府城食品' },
-  { id: 6, name: '台中', color: '#3949ab', stock: '中台精機' },
-  { id: 7, name: '台北', color: '#d81b60', stock: '北城科技' },
-];
+// 目前地圖的區域（同時也是股票），由 maps.js 的 applyMap() 填入
+const DISTRICTS = [];
 
 // 特殊格子說明
 const TILE_TYPES = {
@@ -38,28 +29,8 @@ const TILE_TYPES = {
   land: { name: '土地', icon: '', desc: '' },
 };
 
-// 地圖：44 格環狀路線（14 x 10 棋盤外圈）
-const L = (name, district, price) => ({ type: 'land', name, district, price });
-const S = (type) => ({ type, name: TILE_TYPES[type].name });
-const MAP_TILES = [
-  S('bank'),                                             // 0 左上角
-  L('廟口', 0, 1000), L('和平島', 0, 1000), S('chance'), L('八斗子', 0, 1100),
-  S('card'),
-  L('礁溪', 1, 1300), L('羅東', 1, 1400), S('minigame'), L('蘇澳', 1, 1400), L('冬山', 1, 1500),
-  S('news'), S('temple'),
-  S('hospital'),                                         // 13 右上角
-  L('七星潭', 2, 1700), L('太魯閣', 2, 1800), S('fate'), L('瑞穗', 2, 1800), L('玉里', 2, 1900),
-  S('shop'),
-  L('池上', 3, 2100), L('鹿野', 3, 2200),
-  S('stock'),                                            // 22 右下角
-  L('知本', 3, 2300), S('chance'),
-  L('旗津', 4, 2500), L('駁二', 4, 2600), L('愛河', 4, 2600), S('card'), L('左營', 4, 2800),
-  S('minigame'),
-  L('安平', 5, 2900), L('赤崁樓', 5, 3000), L('神農街', 5, 3000), L('奇美', 5, 3200),
-  S('jail'),                                             // 35 左下角
-  L('逢甲', 6, 3400), L('一中街', 6, 3500), L('高美濕地', 6, 3600), S('fate'),
-  L('北投', 7, 3900), L('士林', 7, 4000), L('大安', 7, 4300), L('信義', 7, 4800),
-];
+// 目前地圖的 44 格，由 maps.js 的 applyMap() 填入
+const MAP_TILES = [];
 const BOARD_COLS = 14, BOARD_ROWS = 10;
 
 // 建築等級

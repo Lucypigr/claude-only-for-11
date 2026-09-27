@@ -1,23 +1,11 @@
-// 3D 地圖：台灣島輪廓、環島道路、地形、建築與地標模型
+// 3D 地圖：依目前地圖（maps.js）建立陸地、道路、格子位置與山脈
 const Map3D = {
-  // 簡化的台灣海岸線（經度, 緯度），從北端富貴角開始順時針
-  OUTLINE: [
-    [121.52, 25.30], [121.66, 25.23], [121.78, 25.15], [121.93, 25.02], [121.85, 24.86], [121.82, 24.70],
-    [121.87, 24.56], [121.78, 24.36], [121.65, 24.08], [121.56, 23.80], [121.47, 23.50], [121.37, 23.22],
-    [121.20, 22.88], [121.00, 22.60], [120.90, 22.30], [120.87, 21.96], [120.74, 21.92], [120.66, 22.10],
-    [120.58, 22.36], [120.42, 22.49], [120.27, 22.63], [120.16, 22.95], [120.10, 23.22], [120.13, 23.52],
-    [120.24, 23.86], [120.43, 24.20], [120.64, 24.50], [120.87, 24.80], [121.03, 25.00], [121.21, 25.12],
-    [121.40, 25.25],
-  ],
-  K: 17,            // 每 1 度的長度
-  XF: 1.08,         // 東西向放大（讓島寬一點好放建築）
   TOP: 0.6,         // 陸地表面高度
-  ROAD_INSET: 3.0,  // 道路距離海岸
-  ROAD_MIN_LAT: 22.5, // 道路在恆春半島前迴轉
   PLOT_OFFSET: 2.1, // 土地距離道路中心
+  EMBANK: 3.4,      // route 模式道路兩側填出的陸地寬度
 
-  toXZ(lon, lat) { return new THREE.Vector2((lon - 120.95) * this.K * this.XF, -(lat - 23.62) * this.K); },
-  toLonLat(x, z) { return [120.95 + x / this.K / this.XF, 23.62 - z / this.K]; },
+  toXZ(lon, lat) { return new THREE.Vector2((lon - this.C[0]) * this.K * this.XF, -(lat - this.C[1]) * this.K); },
+  toLonLat(x, z) { return [this.C[0] + x / this.K / this.XF, this.C[1] - z / this.K]; },
 
   insidePoly(poly, x, z) {
     let inside = false;
@@ -28,21 +16,18 @@ const Map3D = {
     return inside;
   },
 
-  // 建立所有幾何資料（不含 mesh）
-  build(nTiles) {
-    const coast = this.OUTLINE.map(([lo, la]) => this.toXZ(lo, la));
-    this.coast = coast;
-    // 道路：把海岸線往內縮
+  // 沿海岸線內縮出道路控制點
+  insetRoad(coast, inset, minLat) {
     const n = coast.length, road = [];
     for (let i = 0; i < n; i++) {
       const prev = coast[(i - 1 + n) % n], cur = coast[i], next = coast[(i + 1) % n];
       const e1 = new THREE.Vector2().subVectors(cur, prev).normalize();
       const e2 = new THREE.Vector2().subVectors(next, cur).normalize();
       const t = e1.add(e2).normalize();
-      let nrm = new THREE.Vector2(-t.y, t.x);
+      const nrm = new THREE.Vector2(-t.y, t.x);
       if (!this.insidePoly(coast, cur.x + nrm.x * 0.5, cur.y + nrm.y * 0.5)) nrm.multiplyScalar(-1);
-      const rp = new THREE.Vector3(cur.x + nrm.x * this.ROAD_INSET, this.TOP, cur.y + nrm.y * this.ROAD_INSET);
-      if (this.toLonLat(rp.x, rp.z)[1] >= this.ROAD_MIN_LAT) road.push(rp);
+      const rp = new THREE.Vector3(cur.x + nrm.x * inset, this.TOP, cur.y + nrm.y * inset);
+      if (minLat === undefined || this.toLonLat(rp.x, rp.z)[1] >= minLat) road.push(rp);
     }
     // 平滑化，避免海岸線凹凸讓道路扭來扭去
     for (let it = 0; it < 3; it++) {
@@ -52,16 +37,35 @@ const Map3D = {
         road[i].set(0.25 * a.x + 0.5 * cp[i].x + 0.25 * b.x, this.TOP, 0.25 * a.z + 0.5 * cp[i].z + 0.25 * b.z);
       }
     }
+    return road;
+  },
+
+  // 建立所有幾何資料（不含 mesh）
+  build(nTiles) {
+    const geo = CURRENT_MAP.geo;
+    this.geo = geo;
+    this.C = geo.center;
+    this.K = geo.K;
+    this.XF = geo.XF;
+    this.lands = geo.lands.map(poly => poly.map(([lo, la]) => this.toXZ(lo, la)));
+    this.coast = this.lands[0];
+    const road = geo.mode === 'coast'
+      ? this.insetRoad(this.coast, geo.inset, geo.minLat)
+      : geo.route.map(([lo, la]) => { const v = this.toXZ(lo, la); return new THREE.Vector3(v.x, this.TOP, v.y); });
     this.curve = new THREE.CatmullRomCurve3(road, true, 'centripetal');
     this.length = this.curve.getLength();
-    const samples = this.curve.getSpacedPoints(500);
+    const samples = this.curve.getSpacedPoints(600);
+    this.roadSamples = samples;
     this.roadDist = (x, z) => samples.reduce((m, s) => Math.min(m, Math.hypot(s.x - x, s.z - z)), Infinity);
+    const loop = samples.map(s => new THREE.Vector2(s.x, s.z));
+    const route = geo.mode === 'route';
+    this.onLand = (x, z) => this.lands.some(poly => this.insidePoly(poly, x, z)) || (route && this.roadDist(x, z) <= this.EMBANK - 0.2);
     // 每一格的位置、方向、內側法線；土地優先放內側，太擠就放外側
     this.tiles = [];
     const placed = [];
     // 分數 >= 0 代表放得下：離道路、其他土地、海岸都夠遠
     const score = (q) => {
-      const coastOk = [[-1.1, -1.1], [1.1, -1.1], [-1.1, 1.1], [1.1, 1.1]].every(([dx, dz]) => this.insidePoly(coast, q.x + dx, q.z + dz));
+      const coastOk = [[-1.1, -1.1], [1.1, -1.1], [-1.1, 1.1], [1.1, 1.1]].every(([dx, dz]) => this.onLand(q.x + dx, q.z + dz));
       const plotD = placed.reduce((m, o) => Math.min(m, Math.hypot(o.x - q.x, o.z - q.z)), Infinity);
       return Math.min(this.roadDist(q.x, q.z) - 1.9, plotD - 1.75) - (coastOk ? 0 : 5);
     };
@@ -70,7 +74,8 @@ const Map3D = {
       const p = this.curve.getPointAt(u);
       const tan = this.curve.getTangentAt(u);
       const nrm = new THREE.Vector3(-tan.z, 0, tan.x);
-      if (!this.insidePoly(coast, p.x + nrm.x * 3, p.z + nrm.z * 3)) nrm.multiplyScalar(-1);
+      const inner = route ? this.insidePoly(loop, p.x + nrm.x * 0.5, p.z + nrm.z * 0.5) : this.insidePoly(this.coast, p.x + nrm.x * 3, p.z + nrm.z * 3);
+      if (!inner) nrm.multiplyScalar(-1);
       const rot = Math.atan2(tan.x, tan.z);
       let best = null;
       for (const side of [1, -1, 1.3, -1.3]) {
@@ -85,29 +90,35 @@ const Map3D = {
       placed.push(best.q);
       this.tiles.push({ p, tan, nrm, rot, plot: best.q });
     }
-    // 中央山脈：沿著島的脊線
-    this.spine = [];
-    for (let lat = 24.75; lat >= 22.35; lat -= 0.12) {
-      const z = this.toXZ(121, lat).y;
-      const xs = [];
-      for (let i = 0; i < n; i++) {
-        const a = coast[i], b = coast[(i + 1) % n];
-        if ((a.y > z) !== (b.y > z)) xs.push(a.x + (b.x - a.x) * (z - a.y) / (b.y - a.y));
+    // 山：沿脊線自動產生，或使用地圖指定的山峰
+    this.peaks = [];
+    if (geo.spine) {
+      const sp = geo.spine, coast = this.coast, n = coast.length;
+      for (let lat = sp.from; lat >= sp.to; lat -= 0.12) {
+        const z = this.toXZ(this.C[0], lat).y;
+        const xs = [];
+        for (let i = 0; i < n; i++) {
+          const a = coast[i], b = coast[(i + 1) % n];
+          if ((a.y > z) !== (b.y > z)) xs.push(a.x + (b.x - a.x) * (z - a.y) / (b.y - a.y));
+        }
+        if (xs.length >= 2) {
+          const mn = Math.min(...xs), mx = Math.max(...xs);
+          this.peaks.push({ x: mn + (mx - mn) * sp.frac, z, spread: mx - mn, boost: 1 });
+        }
       }
-      if (xs.length >= 2) {
-        const mn = Math.min(...xs), mx = Math.max(...xs);
-        this.spine.push({ x: mn + (mx - mn) * 0.58, z, w: mx - mn });
-      }
+      const pk = this.toXZ(sp.peak[0], sp.peak[1]);
+      this.peaks.forEach(q => { q.boost = 1 + 0.9 * Math.exp(-Math.pow((q.z - pk.y) / 9, 2)); });
     }
-  },
-
-  // 與道路與土地的最近距離（避免山與樹蓋住道路）
-  clearance(x, z) {
-    let d = Infinity;
-    for (const t of this.tiles) {
-      d = Math.min(d, Math.hypot(t.p.x - x, t.p.z - z) - 1.1, Math.hypot(t.plot.x - x, t.plot.z - z) - 1.3);
+    for (const [lo, la, boost] of geo.mountains || []) {
+      const v = this.toXZ(lo, la);
+      this.peaks.push({ x: v.x, z: v.y, spread: 0, boost: boost || 1 });
     }
-    return d;
+    // 範圍（鏡頭、樹林、雲用）
+    const pts = this.lands.flat().concat(loop);
+    const xs = pts.map(v => v.x), zs = pts.map(v => v.y);
+    this.bounds = { minX: Math.min(...xs) - 2, maxX: Math.max(...xs) + 2, minZ: Math.min(...zs) - 2, maxZ: Math.max(...zs) + 2 };
+    this.mid = new THREE.Vector3((this.bounds.minX + this.bounds.maxX) / 2, 0, (this.bounds.minZ + this.bounds.maxZ) / 2);
+    this.span = Math.max(this.bounds.maxX - this.bounds.minX, this.bounds.maxZ - this.bounds.minZ);
   },
 
   // ---------- 貼圖 ----------

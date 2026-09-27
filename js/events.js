@@ -69,7 +69,7 @@ const Events = {
   ],
 
   newsList: [
-    { icon: '🏗️', title: '地價上漲', run: () => { Game.s.tiles.forEach(t => { if (t.type === 'land') t.price = U.round10(t.price * 1.1); }); return '全台地價上漲 10%！'; } },
+    { icon: '🏗️', title: '地價上漲', run: () => { Game.s.tiles.forEach(t => { if (t.type === 'land') t.price = U.round10(t.price * 1.1); }); return `${CURRENT_MAP.name}地價全面上漲 10%！`; } },
     { icon: '🐂', title: '股市大多頭', run: () => { DISTRICTS.forEach(d => { Stocks.shock(d.id, 0.08); Stocks.setTrend(d.id, 1, 2); }); return '外資大舉買超，所有股票大漲！'; } },
     { icon: '🐻', title: '股市崩盤', run: () => { DISTRICTS.forEach(d => Stocks.shock(d.id, -0.15)); return '國際情勢緊張，股市重挫 15%！'; } },
     { icon: '💵', title: '發放紓困金', run: () => { Game.s.players.forEach(x => { if (!x.bankrupt) x.cash += 2000; }); return '政府發放紓困金，每人 $2,000'; } },

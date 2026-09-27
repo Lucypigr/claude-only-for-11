@@ -48,6 +48,11 @@ button.small { padding: 4px 8px; font-size: 13px; }
   background: linear-gradient(90deg, #ff5f2e, #ffb300, #ff2e7a); -webkit-background-clip: text; background-clip: text; color: transparent;
   font-weight: 900; }
 .logo-sub { text-align: center; margin: 0 0 18px; color: var(--muted); }
+.mappick { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.mapcard { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 8px; background: #f6f7fb; border: 3px solid transparent; }
+.mapcard.sel { border-color: var(--accent); background: #fff4e8; }
+.mapcard .micon { font-size: 30px; line-height: 1.1; }
+.mapcard .mdesc { font-size: 12px; color: var(--muted); line-height: 1.4; }
 .slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
 .slot { border-radius: 14px; padding: 12px; background: #f6f7fb; text-align: center; border: 3px solid transparent; }
 .slot .avatar { font-size: 44px; line-height: 1.2; }
