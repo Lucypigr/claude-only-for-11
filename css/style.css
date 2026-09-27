@@ -269,7 +269,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; font-varian
   .ticker { flex-direction: column; font-size: calc(var(--t) * 0.27); }
   body.mode3d { padding-bottom: 92px; }
   body.mode3d #view3d { height: 58vh; }
-  body.mode3d #actions { position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 30; box-shadow: 0 6px 20px #0005; }
+  body.mode3d #actions { position: fixed; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); z-index: 30; box-shadow: 0 6px 20px #0005; }
   body.mode3d #actions:has(button) .hint { display: none; }
   #board.portrait .tile { font-size: calc(var(--t) * 0.2); }
   #board.portrait .tile .tsub { font-size: .85em; }
