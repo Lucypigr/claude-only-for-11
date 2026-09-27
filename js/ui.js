@@ -36,14 +36,16 @@ const UI = {
   init() {
     const board = $('#board');
     board.innerHTML = '';
-    board.appendChild(U.el('div', { class: 'center' },
+    // 日期、骰子、事件等資訊：平面模式放在棋盤中央，3D 模式浮在畫面上
+    this.hud = U.el('div', { class: 'hud' },
       U.el('div', { class: 'ctitle' }, '大富翁'),
       U.el('div', { class: 'cdate', id: 'cdate' }),
       U.el('div', { class: 'cturn', id: 'cturn' }),
       U.el('div', { class: 'dice', id: 'dice' }),
       U.el('div', { class: 'cevent', id: 'cevent' }),
       U.el('div', { class: 'ticker', id: 'ticker' }),
-    ));
+    );
+    board.appendChild(U.el('div', { class: 'center' }, this.hud));
     this.tileEls = Game.s.tiles.map((t, i) => {
       const el = U.el('div', { class: 'tile', onclick: () => this.onTileClick(i) });
       board.appendChild(el);
@@ -55,7 +57,46 @@ const UI = {
       window.addEventListener('resize', () => this.layout());
     }
     $('#log').innerHTML = '';
+    this.applyMode();
     this.renderAll();
+  },
+
+  // ---------- 3D / 平面切換 ----------
+  getMode() {
+    try { return localStorage.getItem('richman-view') || '3d'; } catch (e) { return '3d'; }
+  },
+
+  setMode(mode) {
+    try { localStorage.setItem('richman-view', mode); } catch (e) { /* 忽略 */ }
+    this.applyMode();
+    this.renderAll();
+  },
+
+  applyMode() {
+    let mode = this.getMode();
+    const v = $('#view3d');
+    if (mode === '3d' && !View3D.init(v.querySelector('.stage'))) {
+      mode = '2d';
+      this.toast('此裝置不支援 WebGL，改用平面棋盤');
+    }
+    const is3d = mode === '3d';
+    document.body.classList.toggle('mode3d', is3d);
+    v.classList.toggle('hidden', !is3d);
+    $('#board').classList.toggle('hidden', is3d);
+    (is3d ? v.querySelector('.hudwrap') : $('#board .center')).appendChild(this.hud);
+    $('#btnView').textContent = is3d ? '🗺️ 平面棋盤' : '🏙️ 3D 地圖';
+    View3D.setActive(is3d);
+    if (is3d) View3D.resize();
+  },
+
+  bindViewControls() {
+    $('#btnView').addEventListener('click', () => this.setMode(this.getMode() === '3d' ? '2d' : '3d'));
+    $('#camMode').addEventListener('click', (e) => {
+      e.currentTarget.textContent = View3D.toggleMode() === 'follow' ? '🗺️ 全景' : '🎯 跟隨';
+    });
+    $('#camIn').addEventListener('click', () => View3D.zoom(0.8));
+    $('#camOut').addEventListener('click', () => View3D.zoom(1.25));
+    $('#camReset').addEventListener('click', () => View3D.resetView());
   },
 
   renderAll() {
@@ -64,6 +105,7 @@ const UI = {
     Game.s.tiles.forEach((_, i) => this.renderTile(i));
     this.renderPlayers();
     this.renderCenter();
+    if (View3D.active) View3D.sync();
   },
 
   renderTile(i) {
@@ -110,6 +152,7 @@ const UI = {
       }
     }
     if (this.picking && this.picking.set.has(i)) el.classList.add('pickable');
+    if (View3D.active) View3D.syncTile(i);
   },
 
   renderPlayers() {
@@ -184,6 +227,7 @@ const UI = {
   },
 
   flashTile(i) {
+    View3D.flash(i);
     const el = this.tileEls[i];
     if (!el) return;
     el.classList.remove('flash');

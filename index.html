@@ -35,6 +35,12 @@
             <option value="400000">總資產先達 $400,000</option>
           </select>
         </label>
+        <label>畫面
+          <select id="optView">
+            <option value="3d" selected>3D 台灣地圖</option>
+            <option value="2d">平面棋盤</option>
+          </select>
+        </label>
         <label>動畫速度
           <select id="optSpeed">
             <option value="0.5">快</option>
@@ -55,7 +61,7 @@
         <p><b>📈 股票</b>（參考 Fortune Street）：每個區域都有一檔股票。股價跟著區域開發程度走──在該區買地蓋房會推升股價；一次買賣 10 股以上也會推動股價。有人在該區付過路費時，所有股東都能依持股領股利！平日擲骰前可進入股市，週末休市，但停在「證券所」週末也能交易，還能打聽內線消息。</p>
         <p><b>🎮 小遊戲</b>：打地鼠、賽馬、猜大小、拉霸機、記憶翻牌、神準一擊、猜拳王。</p>
         <p><b>🚗 交通工具</b>：在道具店可買機車（2 顆骰）、汽車（3 顆骰），擲骰前可自由選擇要擲幾顆。</p>
-        <p>點擊棋盤格子可查看土地資訊，點擊玩家卡片可查看資產。全部設為電腦即可觀戰。</p>
+        <p><b>🏙️ 3D 地圖</b>：環島道路繞行整座台灣，拖曳旋轉視角、滾輪／雙指縮放，「全景」可俯瞰全島；也可切換回平面棋盤。點擊格子或建築可查看土地資訊，點擊玩家卡片可查看資產。全部設為電腦即可觀戰。</p>
       </details>
     </div>
   </div>
@@ -63,12 +69,25 @@
   <div id="game" class="hidden">
     <div id="players"></div>
     <div id="main">
+      <div id="view3d" class="hidden">
+        <div class="stage"></div>
+        <div class="hudwrap"></div>
+        <div class="camtools">
+          <button id="camMode" class="small">🗺️ 全景</button>
+          <button id="camIn" class="small">＋</button>
+          <button id="camOut" class="small">－</button>
+          <button id="camReset" class="small" title="重設視角">🧭</button>
+        </div>
+      </div>
       <div id="board"></div>
       <aside id="side">
         <div id="turnInfo" class="box"></div>
         <div id="actions" class="box"></div>
         <div id="log" class="box"></div>
-        <button id="btnMenu" class="small">⚙️ 選單</button>
+        <div class="sidebtns">
+          <button id="btnView" class="small">🗺️ 平面棋盤</button>
+          <button id="btnMenu" class="small">⚙️ 選單</button>
+        </div>
       </aside>
     </div>
   </div>
@@ -76,9 +95,12 @@
   <div id="modalRoot"></div>
   <div id="toastRoot"></div>
 
+  <script src="vendor/three.min.js"></script>
   <script src="js/util.js"></script>
   <script src="js/data.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/map3d.js"></script>
+  <script src="js/view3d.js"></script>
   <script src="js/game.js"></script>
   <script src="js/economy.js"></script>
   <script src="js/stocks.js"></script>

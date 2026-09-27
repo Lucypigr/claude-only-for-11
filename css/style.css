@@ -156,6 +156,38 @@ button.small { padding: 4px 8px; font-size: 13px; }
 #log .bad { color: var(--bad); }
 #log .god { color: #8e24aa; }
 
+/* ---------- 3D 地圖 ---------- */
+#view3d {
+  position: relative; flex: 1 1 auto; min-width: 0; height: calc(100vh - 112px); min-height: 380px;
+  border-radius: 14px; overflow: hidden; box-shadow: 0 8px 24px #0004; background: #9ed8ff;
+}
+#view3d .stage { position: absolute; inset: 0; }
+#view3d .stage canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+#view3d .stage canvas:active { cursor: grabbing; }
+#view3d .hudwrap, #view3d .hud { position: absolute; inset: 0; pointer-events: none; }
+#view3d .ctitle { display: none; }
+#view3d .cdate, #view3d .cturn {
+  position: absolute; left: 10px; font-size: 14px; font-weight: 700; background: #ffffffe0;
+  padding: 3px 12px; border-radius: 20px; box-shadow: 0 2px 6px #0002;
+}
+#view3d .cdate { top: 10px; }
+#view3d .cturn { top: 42px; }
+#view3d .dice { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); min-height: 0; }
+#view3d .die { width: 54px; height: 54px; font-size: 34px; }
+#view3d .cevent {
+  position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); font-size: 15px; font-weight: 700;
+  width: max-content; max-width: 92%; box-shadow: 0 2px 8px #0003; text-align: center;
+}
+#view3d .ticker {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); font-size: 12px; background: #ffffffd0;
+  flex-wrap: nowrap; width: max-content; max-width: 96%; overflow: hidden;
+}
+#view3d .camtools { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; }
+#view3d .camtools button { background: #ffffffe6; }
+body.mode3d #side { height: calc(100vh - 112px); }
+.sidebtns { display: flex; gap: 6px; }
+.sidebtns button { flex: 1; }
+
 /* ---------- 對話框 ---------- */
 .overlay { position: fixed; inset: 0; background: #0006; display: grid; place-items: center; z-index: 50; padding: 12px; animation: fadein .15s; }
 @keyframes fadein { from { opacity: 0; } }
@@ -220,6 +252,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; font-varian
   :root { --t: min(calc((100vw - 50px) / 14), 64px); }
   #main { flex-direction: column; align-items: center; }
   #side { width: 100%; height: auto; }
+  body.mode3d #side { height: auto; }
+  #view3d { width: 100%; flex: none; height: 62vh; }
   #log { height: 220px; flex: none; }
   .pcard { min-width: 132px; }
   .pcard .pav { font-size: 24px; }
@@ -233,11 +267,21 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; font-varian
   .center .cdate { font-size: calc(var(--t) * 0.28); }
   .center .cturn, .cevent { font-size: calc(var(--t) * 0.3); }
   .ticker { flex-direction: column; font-size: calc(var(--t) * 0.27); }
+  body.mode3d { padding-bottom: 92px; }
+  body.mode3d #view3d { height: 58vh; }
+  body.mode3d #actions { position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 30; box-shadow: 0 6px 20px #0005; }
+  body.mode3d #actions:has(button) .hint { display: none; }
   #board.portrait .tile { font-size: calc(var(--t) * 0.2); }
   #board.portrait .tile .tsub { font-size: .85em; }
 }
 @media (max-width: 520px) {
   .modal { padding: 14px; }
+  #view3d .ticker { display: none; }
+  #view3d .cevent { bottom: 10px; font-size: 13px; }
+  #view3d .cdate, #view3d .cturn { font-size: 12px; padding: 2px 8px; }
+  #view3d .cturn { top: 36px; }
+  #view3d .dice { top: auto; bottom: 46px; }
+  #view3d .camtools { flex-direction: column; }
   .mole-grid { grid-template-columns: repeat(3, 70px); }
   .hole { width: 70px; height: 70px; }
   .col-spark, .maxbtn { display: none; }

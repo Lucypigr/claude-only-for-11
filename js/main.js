@@ -41,6 +41,9 @@ const Setup = {
 
   init() {
     this.render();
+    $('#optView').value = UI.getMode();
+    $('#optView').addEventListener('change', (e) => { try { localStorage.setItem('richman-view', e.target.value); } catch (err) { /* 忽略 */ } });
+    UI.bindViewControls();
     $('#btnStart').addEventListener('click', () => {
       const cfg = this.collect();
       if (typeof cfg === 'string') { UI.toast(cfg); return; }
